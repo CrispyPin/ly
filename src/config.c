@@ -261,8 +261,8 @@ void lang_defaults()
 
 void config_defaults()
 {
-	config.animate = false;
-	config.animation = 0;
+	config.animate = true;
+	config.animation = 1;
 	config.asterisk = '*';
 	config.bg = 0;
 	config.blank_box = true;

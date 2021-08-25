@@ -494,12 +494,35 @@ static void doom_init(struct term_buf* buf)
 	memset(buf->tmp_buf + tmp_len, DOOM_STEPS - 1, buf->width);
 }
 
+static void gol_init(struct term_buf* buf)
+{
+	buf->init_width = buf->width;
+	buf->init_height = buf->height;
+
+	u16 tmp_len = buf->width * buf->height;
+	buf->tmp_buf = malloc(tmp_len);
+	tmp_len -= buf->width;
+
+	if (buf->tmp_buf == NULL)
+	{
+		dgn_throw(DGN_ALLOC);
+	}
+
+	memset(buf->tmp_buf, 0, tmp_len);
+	memset(buf->tmp_buf + tmp_len, DOOM_STEPS - 1, buf->width);
+}
+
 void animate_init(struct term_buf* buf)
 {
 	if (config.animate)
 	{
 		switch(config.animation)
 		{
+			case 1:
+			{
+				gol_init(buf);
+				break;
+			}
 			default:
 			{
 				doom_init(buf);
@@ -572,6 +595,69 @@ static void doom(struct term_buf* term_buf)
 	}
 }
 
+static void gol(struct term_buf* term_buf)
+{
+	static struct tb_cell fire[DOOM_STEPS] =
+	{
+		{' ', 9, 0}, // default
+		{0x2591, 5, 0}, // red
+		{0x2592, 5, 0}, // red
+		{0x2593, 5, 0}, // red
+		{0x2588, 5, 0}, // red
+		{0x2591, 7, 5},	// yellow
+		{0x2592, 7, 5}, // yellow
+		{0x2593, 7, 5}, // yellow
+		{0x2588, 7, 5}, // yellow
+		{0x2591, 3, 7}, // white
+		{0x2592, 3, 7}, // white
+		{0x2593, 3, 7}, // white
+		{0x2588, 3, 7}, // white
+	};
+
+	u16 src;
+	u16 random;
+	u16 dst;
+
+	u16 w = term_buf->init_width;
+	u8* tmp = term_buf->tmp_buf;
+
+	if ((term_buf->width != term_buf->init_width) || (term_buf->height != term_buf->init_height))
+	{
+		return;
+	}
+
+	struct tb_cell* buf = tb_cell_buffer();
+
+	for (u16 x = 0; x < w; ++x)
+	{
+		for (u16 y = 1; y < term_buf->init_height; ++y)
+		{
+			src = y * w + x;
+			random = ((rand() % 7) & 3);
+			dst = src - random + 1;
+
+			if (w > dst)
+			{
+				dst = 0;
+			}
+			else
+			{
+				dst -= w;
+			}
+
+			tmp[dst] = tmp[src] - (random & 1);
+
+			if (tmp[dst] > 12)
+			{
+				tmp[dst] = 0;
+			}
+
+			buf[dst] = fire[tmp[dst]];
+			buf[src] = fire[tmp[src]];
+		}
+	}
+}
+
 void animate(struct term_buf* buf)
 {
 	buf->width = tb_width();
@@ -581,6 +667,11 @@ void animate(struct term_buf* buf)
 	{
 		switch(config.animation)
 		{
+			case 1:
+			{
+				gol(buf);
+				break;
+			}
 			default:
 			{
 				doom(buf);
