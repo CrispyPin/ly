@@ -500,16 +500,22 @@ static void gol_init(struct term_buf* buf)
 	buf->init_height = buf->height;
 
 	u16 tmp_len = buf->width * buf->height;
-	buf->tmp_buf = malloc(tmp_len);
-	tmp_len -= buf->width;
+	buf->tmp_buf = malloc(tmp_len * 2);
+	//malloc(tmp_len);
 
 	if (buf->tmp_buf == NULL)
 	{
 		dgn_throw(DGN_ALLOC);
 	}
 
-	memset(buf->tmp_buf, 0, tmp_len);
-	memset(buf->tmp_buf + tmp_len, DOOM_STEPS - 1, buf->width);
+	//memset(buf->tmp_buf, 0, tmp_len);
+	u16 state;
+
+	for (u16 i = 0; i < tmp_len; ++i)
+	{
+		state = (rand() % 3 + 1) & 1;
+		memset(buf->tmp_buf + i, state, 1);
+	}
 }
 
 void animate_init(struct term_buf* buf)
@@ -597,64 +603,58 @@ static void doom(struct term_buf* term_buf)
 
 static void gol(struct term_buf* term_buf)
 {
-	static struct tb_cell fire[DOOM_STEPS] =
+	static struct tb_cell cell_state[2] =
 	{
-		{' ', 9, 0}, // default
-		{0x2591, 5, 0}, // red
-		{0x2592, 5, 0}, // red
-		{0x2593, 5, 0}, // red
-		{0x2588, 5, 0}, // red
-		{0x2591, 7, 5},	// yellow
-		{0x2592, 7, 5}, // yellow
-		{0x2593, 7, 5}, // yellow
-		{0x2588, 7, 5}, // yellow
-		{0x2591, 3, 7}, // white
-		{0x2592, 3, 7}, // white
-		{0x2593, 3, 7}, // white
-		{0x2588, 3, 7}, // white
+		{' ', 9, 0},
+		{0x2588, 7, 7},
 	};
 
-	u16 src;
-	u16 random;
-	u16 dst;
-
-	u16 w = term_buf->init_width;
-	u8* tmp = term_buf->tmp_buf;
-
+	static signed char offsets_x[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
+	static signed char offsets_y[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
+	
 	if ((term_buf->width != term_buf->init_width) || (term_buf->height != term_buf->init_height))
 	{
 		return;
 	}
 
-	struct tb_cell* buf = tb_cell_buffer();
+	u16 width = term_buf->init_width;
+	u16 height = term_buf->init_height;
+	u16 size = width * height;
 
-	for (u16 x = 0; x < w; ++x)
+	u8* state = term_buf->tmp_buf;
+	u8* new_state = term_buf->tmp_buf + size;
+
+	memset(new_state, 0, size);
+
+	struct tb_cell* drawn_buffer = tb_cell_buffer();
+	short px;
+	short py;
+
+	u16 pos;
+	for (u16 x = 0; x < width; ++x)
 	{
-		for (u16 y = 1; y < term_buf->init_height; ++y)
+		for (u16 y = 1; y < height; ++y)
 		{
-			src = y * w + x;
-			random = ((rand() % 7) & 3);
-			dst = src - random + 1;
-
-			if (w > dst)
+			pos = y * width + x;
+			if (state[pos] == 1)
 			{
-				dst = 0;
+				for (u8 offset = 0; offset < 8; offset++) {
+					px = x + offsets_x[offset];
+					py = y + offsets_y[offset];
+					if (px >= 0 && px < width && py >= 0 && py < height)
+					{
+						new_state[py * width + px]++;
+					}
+				}
 			}
-			else
-			{
-				dst -= w;
-			}
-
-			tmp[dst] = tmp[src] - (random & 1);
-
-			if (tmp[dst] > 12)
-			{
-				tmp[dst] = 0;
-			}
-
-			buf[dst] = fire[tmp[dst]];
-			buf[src] = fire[tmp[src]];
 		}
+	}
+	for (u16 pos = 0; pos < size; pos++)
+	{
+		new_state[pos] = (new_state[pos] == 3 || (new_state[pos] == 2 && state[pos] == 1));
+		
+		state[pos] = new_state[pos];
+		drawn_buffer[pos] = cell_state[state[pos]];
 	}
 }
 
