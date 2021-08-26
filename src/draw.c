@@ -501,15 +501,14 @@ static void gol_init(struct term_buf* buf)
 
 	u16 tmp_len = buf->width * buf->height;
 	buf->tmp_buf = malloc(tmp_len * 2);
-	//malloc(tmp_len);
 
 	if (buf->tmp_buf == NULL)
 	{
 		dgn_throw(DGN_ALLOC);
 	}
 
-	//memset(buf->tmp_buf, 0, tmp_len);
 	u16 state;
+	srand((unsigned) time());
 
 	for (u16 i = 0; i < tmp_len; ++i)
 	{
