@@ -14,6 +14,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <time.h>
 
 #if defined(__DragonFly__) || defined(__FreeBSD__)
 	#include <sys/kbio.h>
@@ -496,6 +497,7 @@ static void doom_init(struct term_buf* buf)
 
 static void gol_init(struct term_buf* buf)
 {
+	srand(time(NULL));
 	buf->init_width = buf->width;
 	buf->init_height = buf->height;
 
@@ -508,11 +510,9 @@ static void gol_init(struct term_buf* buf)
 	}
 
 	u16 state;
-	srand((unsigned) time());
-
 	for (u16 i = 0; i < tmp_len; ++i)
 	{
-		state = (rand() % 3 + 1) & 1;
+		state = rand() % 2;
 		memset(buf->tmp_buf + i, state, 1);
 	}
 }
