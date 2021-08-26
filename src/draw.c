@@ -501,20 +501,14 @@ static void gol_init(struct term_buf* buf)
 	buf->init_width = buf->width;
 	buf->init_height = buf->height;
 
-	u16 tmp_len = buf->width * buf->height;
-	buf->tmp_buf = malloc(tmp_len * 2);
+	u16 size = buf->width * buf->height;
+	buf->tmp_buf = malloc(size);
 
 	if (buf->tmp_buf == NULL)
 	{
 		dgn_throw(DGN_ALLOC);
 	}
-
-	u16 state;
-	for (u16 i = 0; i < tmp_len; ++i)
-	{
-		state = rand() % 2;
-		memset(buf->tmp_buf + i, state, 1);
-	}
+	memset(buf->tmp_buf, 0, size);
 }
 
 void animate_init(struct term_buf* buf)
@@ -621,9 +615,6 @@ static void gol(struct term_buf* term_buf)
 	u16 size = width * height;
 
 	u8* state = term_buf->tmp_buf;
-	u8* new_state = term_buf->tmp_buf + size;
-
-	memset(new_state, 0, size);
 
 	struct tb_cell* drawn_buffer = tb_cell_buffer();
 	short px;
@@ -635,24 +626,29 @@ static void gol(struct term_buf* term_buf)
 		for (u16 y = 1; y < height; ++y)
 		{
 			pos = y * width + x;
-			if (state[pos] == 1)
-			{
-				for (u8 offset = 0; offset < 8; offset++) {
-					px = x + offsets_x[offset];
-					py = y + offsets_y[offset];
-					if (px >= 0 && px < width && py >= 0 && py < height)
-					{
-						new_state[py * width + px]++;
-					}
+			for (u8 offset = 0; offset < 8; offset++) {
+				px = x + offsets_x[offset];
+				py = y + offsets_y[offset];
+				if (px >= 0 &&
+					px < width &&
+					py > 0 &&
+					py < height)
+				{
+					state[pos] += 2 * (state[py * width + px] & 1);
+				}
+				else
+				{
+					//randomise if the cell is off screen
+					state[pos] += rand() & 2;
 				}
 			}
 		}
 	}
 	for (u16 pos = 0; pos < size; pos++)
 	{
-		new_state[pos] = (new_state[pos] == 3 || (new_state[pos] == 2 && state[pos] == 1));
+		u8 ncount = state[pos] >> 1;
+		state[pos] = (ncount == 3 || (ncount == 2 && state[pos] & 1));
 		
-		state[pos] = new_state[pos];
 		drawn_buffer[pos] = cell_state[state[pos]];
 	}
 }
