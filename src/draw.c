@@ -610,45 +610,53 @@ static void gol(struct term_buf* term_buf)
 		return;
 	}
 
+	u8* state = term_buf->tmp_buf;
 	u16 width = term_buf->init_width;
 	u16 height = term_buf->init_height;
 	u16 size = width * height;
-
-	u8* state = term_buf->tmp_buf;
-
-	struct tb_cell* drawn_buffer = tb_cell_buffer();
-	short px;
-	short py;
-
-	u16 pos;
-	for (u16 x = 0; x < width; ++x)
+	
+	// skip frames because yes
+	state[0]++;
+	if (state[0] >= 15)
 	{
-		for (u16 y = 1; y < height; ++y)
+		state[0] = 0;
+		short px;
+		short py;
+		u16 pos;
+
+		for (u16 x = 0; x < width; ++x)
 		{
-			pos = y * width + x;
-			for (u8 offset = 0; offset < 8; offset++) {
-				px = x + offsets_x[offset];
-				py = y + offsets_y[offset];
-				if (px >= 0 &&
-					px < width &&
-					py > 0 &&
-					py < height)
-				{
-					state[pos] += 2 * (state[py * width + px] & 1);
-				}
-				else
-				{
-					//randomise if the cell is off screen
-					state[pos] += rand() & 2;
+			for (u16 y = 1; y < height; ++y)
+			{
+				pos = y * width + x;
+				for (u8 offset = 0; offset < 8; offset++) {
+					px = x + offsets_x[offset];
+					py = y + offsets_y[offset];
+					if (px >= 0 && px < width &&
+						py >  0 && py < height)
+					{
+						state[pos] += 2 * (state[py * width + px] & 1);
+					}
+					else
+					{
+						//randomise if the cell is off screen
+						state[pos] += rand() & 2;
+					}
 				}
 			}
 		}
+		
+		for (u16 pos = 0; pos < size; pos++)
+		{
+			u8 ncount = state[pos] >> 1;
+			state[pos] = (ncount == 3 || (ncount == 2 && state[pos] & 1));
+		}
 	}
+
+	// still have to draw to buffer each frame
+	struct tb_cell* drawn_buffer = tb_cell_buffer();
 	for (u16 pos = 0; pos < size; pos++)
 	{
-		u8 ncount = state[pos] >> 1;
-		state[pos] = (ncount == 3 || (ncount == 2 && state[pos] & 1));
-		
 		drawn_buffer[pos] = cell_state[state[pos]];
 	}
 }
